@@ -1,72 +1,98 @@
-
-
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { 
   MantineProvider, 
   Container, 
   Title, 
-  Textarea, 
   Button, 
   Group, 
   Tooltip,
   Paper,
-  Stack
+  Stack,
+  Select
 } from '@mantine/core';
 import { 
   IconBold, 
   IconItalic, 
-  IconUnderline, 
-  IconPalette 
+  IconUnderline 
 } from '@tabler/icons-react';
 
 const DiscordTextStyler = () => {
-  const [text, setText] = useState('');
+  const [activeStyles, setActiveStyles] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
+    foregroundColor: null,
+    backgroundColor: null
+  });
   const textareaRef = useRef(null);
   const [copyCount, setCopyCount] = useState(0);
+  const savedSelectionRef = useRef(null);
 
-  // ANSI color and style mappings
-  const styleOptions = [
-    // Text styles
+  // Text style options
+  const textStyleOptions = [
     { 
+      key: 'bold',
       icon: IconBold, 
       ansiCode: '1', 
-      type: 'style',
       tooltip: 'Bold'
     },
     { 
+      key: 'italic',
       icon: IconItalic, 
       ansiCode: '3', 
-      type: 'style',
       tooltip: 'Italic'
     },
     { 
+      key: 'underline',
       icon: IconUnderline, 
       ansiCode: '4', 
-      type: 'style',
       tooltip: 'Underline'
-    },
-    
-    // Foreground Colors
-    { name: 'Dark Gray', ansiCode: '30', type: 'fg' },
-    { name: 'Red', ansiCode: '31', type: 'fg' },
-    { name: 'Green', ansiCode: '32', type: 'fg' },
-    { name: 'Gold', ansiCode: '33', type: 'fg' },
-    { name: 'Blue', ansiCode: '34', type: 'fg' },
-    { name: 'Pink', ansiCode: '35', type: 'fg' },
-    { name: 'Teal', ansiCode: '36', type: 'fg' },
-    { name: 'White', ansiCode: '37', type: 'fg' },
-    
-    // Background Colors
-    { name: 'Black', ansiCode: '40', type: 'bg' },
-    { name: 'Rust Brown', ansiCode: '41', type: 'bg' },
-    { name: 'Gray (40%)', ansiCode: '42', type: 'bg' },
-    { name: 'Blurple', ansiCode: '45', type: 'bg' },
-    { name: 'Cream White', ansiCode: '47', type: 'bg' }
+    }
   ];
 
-  // Handle text styling
-  const applyStyle = (ansiCode, type) => {
-    const textarea = textareaRef.current;
+  // Foreground Color Options
+  const foregroundColors = [
+    { value: '30', label: 'Dark Gray', color: '#808080' },
+    { value: '31', label: 'Red', color: '#FF0000' },
+    { value: '32', label: 'Green', color: '#00FF00' },
+    { value: '33', label: 'Gold', color: '#FFD700' },
+    { value: '34', label: 'Blue', color: '#0000FF' },
+    { value: '35', label: 'Pink', color: '#FFC0CB' },
+    { value: '36', label: 'Teal', color: '#008080' },
+    { value: '37', label: 'White', color: '#FFFFFF' }
+  ];
+
+  // Background Color Options
+  const backgroundColors = [
+    { value: '40', label: 'Black', color: '#000000' },
+    { value: '41', label: 'Rust Brown', color: '#8B4513' },
+    { value: '42', label: 'Gray (40%)', color: '#666666' },
+    { value: '45', label: 'Blurple', color: '#5865F2' },
+    { value: '47', label: 'Cream White', color: '#FFFAF0' }
+  ];
+
+  // Save current selection
+  const saveSelection = useCallback(() => {
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      savedSelectionRef.current = selection.getRangeAt(0).cloneRange();
+    }
+  }, []);
+
+  // Restore previous selection
+  const restoreSelection = useCallback(() => {
+    if (savedSelectionRef.current) {
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(savedSelectionRef.current);
+    }
+  }, []);
+
+  // Apply styling to selected text
+  const applyStyle = (type, value) => {
+    // Restore previous selection
+    restoreSelection();
+
     const selection = window.getSelection();
     const selectedText = selection.toString();
 
@@ -75,10 +101,41 @@ const DiscordTextStyler = () => {
       return;
     }
 
-    // Create a span with the appropriate ANSI class
+    // Create a span with the appropriate styling
     const span = document.createElement('span');
     span.innerText = selectedText;
-    span.classList.add(`ansi-${ansiCode}`);
+    
+    // Prepare style classes
+    const styleCombination = [];
+    
+    // Add text styles
+    if (type === 'bold') {
+      span.style.fontWeight = activeStyles.bold ? 'normal' : 'bold';
+      styleCombination.push('ansi-1');
+    }
+    if (type === 'italic') {
+      span.style.fontStyle = activeStyles.italic ? 'normal' : 'italic';
+      styleCombination.push('ansi-3');
+    }
+    if (type === 'underline') {
+      span.style.textDecoration = activeStyles.underline ? 'none' : 'underline';
+      styleCombination.push('ansi-4');
+    }
+    
+    // Add color styles
+    if (type === 'foregroundColor') {
+      const color = foregroundColors.find(c => c.value === value);
+      span.style.color = color ? color.color : '';
+      styleCombination.push(`ansi-${value}`);
+    }
+    if (type === 'backgroundColor') {
+      const color = backgroundColors.find(c => c.value === value);
+      span.style.backgroundColor = color ? color.color : '';
+      styleCombination.push(`ansi-${value}`);
+    }
+
+    // Add classes
+    span.classList.add(...styleCombination);
 
     // Replace selected text with styled span
     const range = selection.getRangeAt(0);
@@ -89,22 +146,26 @@ const DiscordTextStyler = () => {
     range.selectNodeContents(span);
     selection.removeAllRanges();
     selection.addRange(range);
-  };
 
-  // Copy to clipboard in Discord ANSI format
-  const copyToClipboard = () => {
-    const toCopy = "```ansi\n" + convertToANSI(textareaRef.current.childNodes) + "\n```";
-    
-    navigator.clipboard.writeText(toCopy).then(() => {
-      const funnyCopyMessages = [
-        "Copied!", "Double Copy!", "Triple Copy!", "Dominating!!", 
-        "Rampage!!", "Mega Copy!!", "Unstoppable!!", "Wicked Sick!!", 
-        "Monster Copy!!!", "GODLIKE!!!", "BEYOND GODLIKE!!!!"
-      ];
+    // Save the new selection
+    saveSelection();
 
-      const newCopyCount = Math.min(11, copyCount + 1);
-      setCopyCount(newCopyCount);
-    });
+    // Update active styles
+    if (type === 'bold') {
+      setActiveStyles(prev => ({ ...prev, bold: !prev.bold }));
+    }
+    if (type === 'italic') {
+      setActiveStyles(prev => ({ ...prev, italic: !prev.italic }));
+    }
+    if (type === 'underline') {
+      setActiveStyles(prev => ({ ...prev, underline: !prev.underline }));
+    }
+    if (type === 'foregroundColor') {
+      setActiveStyles(prev => ({ ...prev, foregroundColor: value }));
+    }
+    if (type === 'backgroundColor') {
+      setActiveStyles(prev => ({ ...prev, backgroundColor: value }));
+    }
   };
 
   // Convert nodes to ANSI formatted text
@@ -119,27 +180,138 @@ const DiscordTextStyler = () => {
         text += "\n";
         continue;   
       }
-      const ansiCode = +(node.className.split("-")[1]);
-      const newState = {...states[states.length - 1]};
-
-      if (ansiCode < 30) newState.st = ansiCode;
-      if (ansiCode >= 30 && ansiCode < 40) newState.fg = ansiCode;
-      if (ansiCode >= 40) newState.bg = ansiCode;
-
-      states.push(newState);
-      text += `\x1b[${newState.st};${(ansiCode >= 40) ? newState.bg : newState.fg}m`;
-      text += convertToANSI(node.childNodes, states);
-      states.pop();
-      text += `\x1b[0m`;
       
-      if (states[states.length - 1].fg !== 2) 
-        text += `\x1b[${states[states.length - 1].st};${states[states.length - 1].fg}m`;
-      if (states[states.length - 1].bg !== 2) 
-        text += `\x1b[${states[states.length - 1].st};${states[states.length - 1].bg}m`;
+      // Collect all ANSI classes
+      const classes = node.classList ? Array.from(node.classList) : [];
+      const ansiClasses = classes.filter(cls => cls.startsWith('ansi-'));
+      
+      const newState = {...states[states.length - 1]};
+  
+      ansiClasses.forEach(cls => {
+        const ansiCode = parseInt(cls.split('-')[1], 10);
+        
+        // Determine the type of ANSI code
+        if (ansiCode < 10) {
+          // Style codes (bold, italic, underline)
+          newState.st = ansiCode;
+        } else if (ansiCode >= 30 && ansiCode < 40) {
+          // Foreground color codes
+          newState.fg = ansiCode;
+        } else if (ansiCode >= 40 && ansiCode < 50) {
+          // Background color codes
+          newState.bg = ansiCode;
+        }
+      });
+  
+      states.push(newState);
+      
+      // Apply ANSI formatting only if there are actual codes to apply
+      if (newState.st !== 2 || newState.fg !== 2 || newState.bg !== 2) {
+        let ansiFormatting = "\x1b[";
+        const formattingCodes = [];
+        
+        if (newState.st !== 2) formattingCodes.push(newState.st);
+        if (newState.fg !== 2) formattingCodes.push(newState.fg);
+        if (newState.bg !== 2) formattingCodes.push(newState.bg);
+        
+        text += ansiFormatting + formattingCodes.join(';') + "m";
+      }
+  
+      // Recursively process child nodes
+      text += convertToANSI(node.childNodes, states);
+      
+      // Reset formatting
+      states.pop();
+      text += "\x1b[0m";
+      
+      // Reapply previous state's formatting if exists
+      const prevState = states[states.length - 1];
+      if (prevState.fg !== 2 || prevState.bg !== 2 || prevState.st !== 2) {
+        let restoreFormatting = "\x1b[";
+        const restoreCodes = [];
+        
+        if (prevState.st !== 2) restoreCodes.push(prevState.st);
+        if (prevState.fg !== 2) restoreCodes.push(prevState.fg);
+        if (prevState.bg !== 2) restoreCodes.push(prevState.bg);
+        
+        text += restoreFormatting + restoreCodes.join(';') + "m";
+      }
     }
     return text;
   };
 
+  const copyToClipboard = () => {
+    if (!textareaRef.current) {
+      alert('Text area not found');
+      return;
+    }
+  
+    try {
+      const content = textareaRef.current;
+      
+      // Check if content exists and has child nodes
+      if (!content || !content.childNodes || content.childNodes.length === 0) {
+        alert('No content to copy');
+        return;
+      }
+  
+      // Convert to ANSI
+      const ansiText = "```ansi\n" + convertToANSI(content.childNodes) + "\n```";
+      
+      // Fallback clipboard methods
+      if (navigator.clipboard) {
+        // Preferred method
+        navigator.clipboard.writeText(ansiText)
+          .then(() => {
+            const newCopyCount = Math.min(11, copyCount + 1);
+            setCopyCount(newCopyCount);
+          })
+          .catch(err => {
+            console.error('Clipboard API failed:', err);
+            fallbackCopyTextToClipboard(ansiText);
+          });
+      } else {
+        // Fallback for browsers without Clipboard API
+        fallbackCopyTextToClipboard(ansiText);
+      }
+    } catch (error) {
+      console.error('Error in copyToClipboard:', error);
+      alert(`Copying failed: ${error.message}`);
+    }
+  };
+
+
+
+  const fallbackCopyTextToClipboard = (text) => {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    
+    // Avoid scrolling to bottom
+    textArea.style.top = "0";
+    textArea.style.left = "0";
+    textArea.style.position = "fixed";
+  
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+  
+    try {
+      const successful = document.execCommand('copy');
+      if (successful) {
+        const newCopyCount = Math.min(11, copyCount + 1);
+        setCopyCount(newCopyCount);
+        alert('Text copied successfully!');
+      } else {
+        alert('Unable to copy text');
+      }
+    } catch (err) {
+      console.error('Fallback copy failed:', err);
+      alert('Copying is not supported in this browser');
+    }
+  
+    document.body.removeChild(textArea);
+  };
+  
   return (
     <MantineProvider>
       <Container size="md" p="md">
@@ -149,24 +321,111 @@ const DiscordTextStyler = () => {
               Discord Text Styler
             </Title>
 
-            {/* Styling Buttons */}
+            {/* Text Style Buttons */}
             <Group justify="center" mb="md">
-              {styleOptions.map((option, index) => (
+              {textStyleOptions.map((option) => (
                 <Tooltip 
-                  key={index} 
-                  label={option.tooltip || option.name}
+                  key={option.key} 
+                  label={option.tooltip}
                   position="bottom"
                 >
                   <Button 
-                    onClick={() => applyStyle(option.ansiCode, option.type)}
-                    variant="light"
+                    onClick={() => {
+                      saveSelection();
+                      applyStyle(option.key, option.ansiCode);
+                    }}
+                    variant={activeStyles[option.key] ? 'filled' : 'light'}
                     color="blue"
-                    leftSection={option.icon ? <option.icon size={16} /> : null}
-                  >
-                    {option.name || ''}
-                  </Button>
+                    leftSection={<option.icon size={16} />}
+                  />
                 </Tooltip>
               ))}
+            </Group>
+
+            {/* Color Selectors */}
+            <Group justify="center" mb="md">
+            <Select
+  label="Text Color"
+  placeholder="Pick text color"
+  data={foregroundColors.map(color => ({
+    value: color.value,
+    label: color.label,
+    color: color.color
+  }))}
+  value={activeStyles.foregroundColor}
+  onChange={(value) => {
+    // Preserve the current selection
+    const savedRange = savedSelectionRef.current;
+    
+    // Use setTimeout to ensure dropdown closes first and selection is preserved
+    setTimeout(() => {
+      // Restore the saved selection
+      if (savedRange) {
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(savedRange);
+      }
+      
+      // Apply the style
+      applyStyle('foregroundColor', value);
+    }, 0);
+  }}
+  clearable
+  renderOption={({ option, checked }) => (
+    <Group flex="1" gap="xs">
+      <div 
+        style={{
+          width: 20,
+          height: 20,
+          backgroundColor: option.color,
+          border: '1px solid black'
+        }}
+      />
+      {option.label}
+    </Group>
+  )}
+/>
+<Select
+  label="Background Color"
+  placeholder="Pick background color"
+  data={backgroundColors.map(color => ({
+    value: color.value,
+    label: color.label,
+    color: color.color
+  }))}
+  value={activeStyles.backgroundColor}
+  onChange={(value) => {
+    // Preserve the current selection
+    const savedRange = savedSelectionRef.current;
+    
+    // Use setTimeout to ensure dropdown closes first and selection is preserved
+    setTimeout(() => {
+      // Restore the saved selection
+      if (savedRange) {
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(savedRange);
+      }
+      
+      // Apply the style
+      applyStyle('backgroundColor', value);
+    }, 0);
+  }}
+  clearable
+  renderOption={({ option, checked }) => (
+    <Group flex="1" gap="xs">
+      <div 
+        style={{
+          width: 20,
+          height: 20,
+          backgroundColor: option.color,
+          border: '1px solid black'
+        }}
+      />
+      {option.label}
+    </Group>
+  )}
+/>
             </Group>
 
             {/* Textarea */}
@@ -193,6 +452,8 @@ const DiscordTextStyler = () => {
                     .replace(/\[(\/?(br|span|span class="ansi-[0-9]*"))\]/g,"<$1>");
                 }
               }}
+              onMouseUp={saveSelection}
+              placeholder="Type or select text to style"
             />
 
             {/* Copy Button */}
