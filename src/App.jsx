@@ -1,58 +1,50 @@
-  import React, { useState, useRef, useCallback, useEffect } from 'react';
-  import { 
-    MantineProvider, 
-    Container, 
-    Title, 
-    Button, 
-    Group, 
-    Tooltip,
-    Paper,
-    Stack,
-    Select,
-    Text
-  } from '@mantine/core';
-  import { 
-    IconBold, 
-    IconItalic, 
-    IconUnderline,
-    IconClearFormatting,
-    IconRefresh
-  } from '@tabler/icons-react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { 
+  MantineProvider, 
+  Container, 
+  Title, 
+  Button, 
+  Group, 
+  Tooltip,
+  Paper,
+  Stack,
+  Select,
+  Text
+} from '@mantine/core';
+import { 
+  IconBold, 
+  IconUnderline,
+  IconClearFormatting,
+  IconRefresh
+} from '@tabler/icons-react';
 
-  const DiscordTextStyler = () => {
-    const [activeStyles, setActiveStyles] = useState({
-      bold: false,
-      italic: false,
-      underline: false,
-      foregroundColor: null,
-      backgroundColor: null
-    });
-    const [selectedText, setSelectedText] = useState('');
-    const textareaRef = useRef(null);
-    const [copyCount, setCopyCount] = useState(0);
-    const savedSelectionRef = useRef(null);
+const DiscordTextStyler = () => {
+  const [activeStyles, setActiveStyles] = useState({
+    bold: false,
+    underline: false,
+    foregroundColor: null,
+    backgroundColor: null
+  });
+  const [selectedText, setSelectedText] = useState(':('); // Default to ':(' when nothing is selected
+  const textareaRef = useRef(null);
+  const [copyCount, setCopyCount] = useState(0);
+  const savedSelectionRef = useRef(null);
 
-    // Text style options
-    const textStyleOptions = [
-      { 
-        key: 'bold',
-        icon: IconBold, 
-        ansiCode: '1', 
-        tooltip: 'Bold'
-      },
-      { 
-        key: 'italic',
-        icon: IconItalic, 
-        ansiCode: '3', 
-        tooltip: 'Italic'
-      },
-      { 
-        key: 'underline',
-        icon: IconUnderline, 
-        ansiCode: '4', 
-        tooltip: 'Underline'
-      }
-    ];
+  // Updated Text style options (removed italic)
+  const textStyleOptions = [
+    { 
+      key: 'bold',
+      icon: IconBold, 
+      ansiCode: '1', 
+      tooltip: 'Bold'
+    },
+    { 
+      key: 'underline',
+      icon: IconUnderline, 
+      ansiCode: '4', 
+      tooltip: 'Underline'
+    }
+  ];
 
     // Foreground Color Options
     const foregroundColors = [
@@ -83,7 +75,7 @@
         
         // Update selected text
         const selectedContent = selection.toString();
-        setSelectedText(selectedContent);
+        setSelectedText(selectedContent || ':('); // Set to ':(' if no text is selected
       }
     }, []);
 
@@ -383,6 +375,12 @@
     
       document.body.removeChild(textArea);
     };
+
+    useEffect(() => {
+      if (textareaRef.current) {
+        textareaRef.current.innerHTML = 'This is a Discord text formatter';
+      }
+    }, []);
     
     return (
       <MantineProvider>
@@ -392,46 +390,45 @@
               <Title order={2} ta="center" mb="md">
                 Discord Text Styler
               </Title>
-
+  
               {/* Selection Display */}
-              {selectedText && (
-                <Paper 
-                  withBorder 
-                  p="xs" 
-                  mb="md" 
-                  style={{ 
-                    backgroundColor: '#f0f0f0', 
-                    borderColor: '#999',
-                    maxHeight: '100px',
-                    overflow: 'auto'
-                  }}
-                >
-                  <Text size="sm">
-                    <strong>Selected:</strong> {selectedText}
-                  </Text>
-                </Paper>
-              )}
+              <Paper 
+                withBorder 
+                p="xs" 
+                mb="md" 
+                style={{ 
+                  backgroundColor: '#f0f0f0', 
+                  borderColor: '#999',
+                  maxHeight: '100px',
+                  overflow: 'auto'
+                }}
+              >
+                <Text size="sm">
+                  <strong>Selected:</strong> {selectedText}
+                </Text>
+              </Paper>
 
               {/* Text Style Buttons */}
               <Group justify="center" mb="md">
-                {textStyleOptions.map((option) => (
-                  <Tooltip 
-                    key={option.key} 
-                    label={option.tooltip}
-                    position="bottom"
-                  >
-                    <Button 
-                      onClick={() => {
-                        saveSelection();
-                        applyStyle(option.key, option.ansiCode);
-                      }}
-                      variant={activeStyles[option.key] ? 'filled' : 'light'}
-                      color="blue"
-                      leftSection={<option.icon size={16} />}
-                    />
-                  </Tooltip>
-                ))}
-              </Group>
+              {textStyleOptions.map((option) => (
+                <Tooltip 
+                  key={option.key} 
+                  label={option.tooltip}
+                  position="bottom"
+                >
+                  <Button 
+                    onClick={() => {
+                      saveSelection();
+                      applyStyle(option.key, option.ansiCode);
+                    }}
+                    variant={activeStyles[option.key] ? 'filled' : 'light'}
+                    color="blue"
+                    leftSection={<option.icon size={16} />}
+                  />
+                </Tooltip>
+              ))}
+            </Group>
+
 
               {/* New Formatting Control Buttons */}
               <Group justify="center" mb="md">
