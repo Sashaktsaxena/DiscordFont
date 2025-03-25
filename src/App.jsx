@@ -378,7 +378,7 @@ const DiscordTextStyler = () => {
 
     useEffect(() => {
       if (textareaRef.current) {
-        textareaRef.current.innerHTML = 'This is a Discord text formatter';
+        textareaRef.current.innerHTML = 'This is a Discord text formatter!!';
       }
     }, []);
     
@@ -388,7 +388,7 @@ const DiscordTextStyler = () => {
           <Paper shadow="md" p="lg" radius="md">
             <Stack>
               <Title order={2} ta="center" mb="md">
-                Discord Text Styler
+              Rebane's Discord Colored Text Generator
               </Title>
   
               {/* Selection Display */}
